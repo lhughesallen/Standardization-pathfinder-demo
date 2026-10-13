@@ -2,11 +2,12 @@
 Keeps the original design, page order, and recommendation engine.
 Starts blank. Shortens prompts within each stage rather than combining stages.
 Run: python -m streamlit run standardization_pathfinder_demo.py
-Requires streamlit>=1.54,<2. No microphone dependency needed.
+Requires streamlit>=1.54,<2. Requires streamlit-mic-recorder for speech-to-text.
 """
 
 import re
 import streamlit as st
+from streamlit_mic_recorder import speech_to_text
 import copy
 import html
 
@@ -731,9 +732,36 @@ def nav(next_disabled=False, next_label="Continue", back=True):
             goto(st.session_state.page + 1)
 
 def voice_textarea(label, key, placeholder="", height=140, help_text=None):
+    st.markdown(f"**{label}**")
     if help_text:
-        st.caption(help_text)
-    return st.text_area(label, key=key, placeholder=placeholder, height=height)
+        st.markdown(f'<div class="microcopy">{help_text}</div>', unsafe_allow_html=True)
+
+    mic, note = st.columns([1.1, 4.9])
+    with mic:
+        transcript = speech_to_text(
+            language="en",
+            start_prompt="🎙 Speak",
+            stop_prompt="Stop",
+            just_once=True,
+            use_container_width=True,
+            key=f"{key}_speech",
+        )
+
+    if transcript:
+        existing = st.session_state.get(key, "").strip()
+        addition = transcript.strip()
+        st.session_state[key] = f"{existing} {addition}".strip() if existing else addition
+
+    with note:
+        st.caption("Type normally, or use the microphone and your words will be added below.")
+
+    return st.text_area(
+        label,
+        key=key,
+        placeholder=placeholder,
+        height=height,
+        label_visibility="collapsed",
+    )
 
 def normalized_text(text):
     return re.sub(r"\s+", " ", (text or "").lower()).strip()
@@ -991,11 +1019,14 @@ if page == 0:
         if st.button("Begin the journey  →", type="primary", width="stretch"):
             goto(1)
 
-    st.caption("Short presentation version · Enter your example as you follow the original journey.")
+    st.caption("Short presentation version · Type or use the microphone on longer questions.")
 
 elif page == 1:
-    heading("Part 1 · Define", "What are you actually trying to fix?",
-            "Focus on the recurring problem and its consequence.")
+    heading(
+        "Part 1 · Define",
+        "What are you actually trying to fix?",
+        "Keep the description factual and neutral. Focus on the recurring problem and its consequence, not the solution you already have in mind.",
+    )
     with st.container(border=True):
         st.text_input("Problem title", key="problem_title", placeholder="A short name for the issue")
         voice_textarea("Pain point", "pain_point", placeholder="What is slow, inconsistent, unclear, or error-prone?", height=130)
@@ -1004,8 +1035,11 @@ elif page == 1:
     nav(next_disabled=not complete)
 
 elif page == 2:
-    heading("Part 2 · Current state", "Walk through what happens today.",
-            "Describe the current workflow, then identify what is driving the problem.")
+    heading(
+        "Part 2 · Current state",
+        "Walk through what happens today.",
+        "Include the real workarounds, manual checks, handoffs, and existing controls. Hidden manual work is often where the best standardization opportunities appear.",
+    )
     voice_textarea("Current workflow", "current_workflow", placeholder="The main steps, including manual checks and handoffs", height=130)
     st.text_input("Existing tools and controls", key="existing_tools", placeholder="Spreadsheets, SOPs, systems, or workarounds (optional)")
     st.markdown("#### What is driving the problem?")
@@ -1014,8 +1048,11 @@ elif page == 2:
     nav(next_disabled=not (st.session_state.current_workflow.strip() and st.session_state.root_causes))
 
 elif page == 3:
-    heading("Part 3 · Practicalities", "How big is the problem in practice?",
-            "A quick snapshot of scope, frequency, users, and effort.")
+    heading(
+        "Part 3 · Practicalities",
+        "How big is the problem in practice?",
+        "Scope, frequency, users, and time help distinguish a one-off annoyance from something worth standardizing heavily.",
+    )
     c1, c2 = st.columns(2)
     with c1:
         st.selectbox("Scope of the issue", SCOPE_OPTIONS, key="scope", index=None, placeholder="Choose the scope")
@@ -1027,8 +1064,11 @@ elif page == 3:
     nav(next_disabled=any(st.session_state[k] is None for k in ("scope", "frequency", "user_count", "time_hours")))
 
 elif page == 4:
-    heading("Part 4 · Daydream", "Ignore constraints for a minute.",
-            "What would the best version of this process look like?")
+    heading(
+        "Part 4 · Daydream",
+        "Ignore constraints for a minute.",
+        "If you had unlimited time, resources, and technical capability, what would the best version of this process look like?",
+    )
     voice_textarea("Your ideal future state", "daydream",
                    placeholder="What would users do, what would happen automatically, and what would they see at the end?", height=160)
     st.text_input("What would success look like?", key="desired_outcome", placeholder="The practical outcome in one sentence")

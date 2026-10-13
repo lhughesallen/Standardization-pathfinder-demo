@@ -1,27 +1,25 @@
-"""Standardization Pathfinder — presentation demo.
-
-Run locally:
-    python -m pip install "streamlit>=1.54,<2"
-    python -m streamlit run standardization_pathfinder_demo.py
-
-Suggested 2–3 minute walkthrough:
-1. Begin the demo with blank fields and enter your example live.
-2. Enter the recurring problem, root causes, and desired outcome.
-3. Show the solution characteristics, then select Find my solution.
-4. Explain the recommendation and expand the workbook build sequence.
-
-The recommendation engine, categories, descriptions, and workbook build
-framework are preserved from the supplied app. Scores are heuristic points,
-not probabilities. No microphone, external service, or file persistence is
-required. Inputs live only in the current Streamlit session.
+"""Short presentation version of the original Standardization Pathfinder.
+Keeps the original design, page order, and recommendation engine.
+Starts blank. Shortens prompts within each stage rather than combining stages.
+Run: python -m streamlit run standardization_pathfinder_demo.py
+Requires streamlit>=1.54,<2. No microphone dependency needed.
 """
-import copy
-import html
+
 import re
 import streamlit as st
+import copy
+import html
 
-st.set_page_config(page_title="Standardization Pathfinder · Demo", page_icon="🧭", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="Standardization Pathfinder · Short demo",
+    page_icon="🧭",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
+# ============================================================
+# Visual design
+# ============================================================
 
 st.markdown(
     """
@@ -492,6 +490,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ============================================================
+# Content
+# ============================================================
+
+PAGES = [
+    "Welcome",
+    "Define the problem",
+    "Understand the current state",
+    "Size the issue",
+    "Imagine the better way",
+    "Solution fit",
+    "Review",
+    "Recommendation",
+]
+
 ROOT_CAUSE_CATEGORIES = [
     "Lack of clarity",
     "Knowledge gap",
@@ -641,6 +654,61 @@ DEFAULTS = {
     "nontechnical": True,
 }
 
+# Blank answers; preserve widget values between pages.
+DEFAULTS.update(scope=None, frequency=None, user_count=None, time_hours=None,
+                data_shape=None, variability=None, nontechnical=False)
+for k, v in DEFAULTS.items():
+    if k not in st.session_state:
+        st.session_state[k] = copy.deepcopy(v)
+    else:
+        st.session_state[k] = st.session_state[k]
+
+# ============================================================
+# Helpers
+# ============================================================
+
+def goto(index):
+    st.session_state.page = max(0, min(index, len(PAGES) - 1))
+    st.rerun()
+
+def reset_app():
+    for k, v in DEFAULTS.items():
+        st.session_state[k] = copy.deepcopy(v)
+    st.rerun()
+
+def topbar():
+    st.markdown(
+        """
+        <div class="topbar">
+            <div class="brand">Standardization Pathfinder</div>
+            <div class="session-note">Session only · nothing is saved</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def step_strip():
+    if st.session_state.page == 0:
+        return
+
+    current = st.session_state.page
+    total = 6
+    html = '<div class="step-strip">'
+    for i in range(1, total + 1):
+        cls = "step"
+        if i < current:
+            cls += " done"
+        elif i == current:
+            cls += " active"
+        html += f'<div class="{cls}"></div>'
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
+
+    if current <= total:
+        st.caption(f"Part {current} of {total} · {PAGES[current]}")
+    else:
+        st.caption("Recommendation")
+
 def heading(kicker, title, text):
     st.markdown(
         f"""
@@ -652,6 +720,20 @@ def heading(kicker, title, text):
         """,
         unsafe_allow_html=True,
     )
+
+def nav(next_disabled=False, next_label="Continue", back=True):
+    left, middle, right = st.columns([1.1, 5.3, 1.35])
+    with left:
+        if back and st.button("Back", width="stretch"):
+            goto(st.session_state.page - 1)
+    with right:
+        if st.button(next_label, type="primary", width="stretch", disabled=next_disabled):
+            goto(st.session_state.page + 1)
+
+def voice_textarea(label, key, placeholder="", height=140, help_text=None):
+    if help_text:
+        st.caption(help_text)
+    return st.text_area(label, key=key, placeholder=placeholder, height=height)
 
 def normalized_text(text):
     return re.sub(r"\s+", " ", (text or "").lower()).strip()
@@ -853,188 +935,265 @@ def solution_description(solution):
     }
     return descriptions.get(solution, "")
 
-# Compact presentation layout, using the original visual design.
-st.markdown("""<style>
-.block-container {max-width:1120px;padding-top:1rem;padding-bottom:1.5rem;}
-.landing-shell,.landing-overlay {min-height:380px;}
-.landing-overlay {padding:2.6rem 3rem;}
-.landing-copy h1 {font-size:3.6rem;max-width:600px;}
-.landing-copy p {font-size:1.04rem;line-height:1.5;}
-.page-heading {margin:.2rem 0 .8rem;}
-.page-heading h2 {font-size:1.85rem;}
-.result-hero {padding:1.4rem 1.7rem;margin-bottom:.8rem;}
-.fit-card {min-height:175px;}
-.demo-tag {font-size:.75rem;letter-spacing:.08em;color:#69766f;text-transform:uppercase;}
-@media(max-width:800px){.landing-overlay{padding:1.8rem;}.landing-copy h1{font-size:2.8rem;}}
-</style>""", unsafe_allow_html=True)
+# ============================================================
+# Pages
+# ============================================================
 
-# No answers are supplied in advance for the live walkthrough.
-DEFAULTS.update(data_shape=None, variability=None, user_count=None, nontechnical=False)
-
-if "demo_initialized" not in st.session_state:
-    st.session_state.update(copy.deepcopy(DEFAULTS))
-    st.session_state.demo_initialized = True
-
-
-def set_page(page):
-    st.session_state.page = page
-
-
-def reset_demo():
-    # Callbacks run before widgets are recreated, so resetting is safe.
-    for key in list(st.session_state):
-        if key.startswith("_input_"):
-            del st.session_state[key]
-    st.session_state.update(copy.deepcopy(DEFAULTS))
-    st.session_state.demo_initialized = True
-
-
-def remember(key):
-    st.session_state[key] = st.session_state[f"_input_{key}"]
-
-
-def widget(method, label, key, **kwargs):
-    # Permanent values survive when a widget disappears on another page.
-    temporary = f"_input_{key}"
-    if temporary not in st.session_state:
-        st.session_state[temporary] = copy.deepcopy(st.session_state[key])
-    return method(label, key=temporary, on_change=remember, args=(key,), **kwargs)
-
-
-def navigation(page, label="Continue", disabled=False):
-    left, _, right = st.columns([1.2, 4.2, 1.8])
-    with left:
-        st.button("Back", on_click=set_page, args=(page - 1,), width="stretch")
-    with right:
-        st.button(label, type="primary", on_click=set_page, args=(page + 1,), disabled=disabled, width="stretch")
-
-
-def escaped(value):
-    return html.escape(str(value))
-
-
-brand, restart = st.columns([6, 1.5])
-with brand:
-    st.markdown('<div class="brand">🧭 Standardization Pathfinder</div><div class="demo-tag">Presentation demo · session only</div>', unsafe_allow_html=True)
-with restart:
-    st.button("Start over", on_click=reset_demo, width="stretch")
-
+topbar()
+step_strip()
 page = st.session_state.page
-if page:
-    names = ["Problem & better way", "Solution fit", "Recommendation"]
-    st.progress(page / 3)
-    st.caption(f"{page} of 3 · {names[page - 1]}")
 
 if page == 0:
-    st.markdown("""<div class="landing-shell">
-<div class="landing-sky"></div><div class="mist"></div>
-<div class="mountains-back"></div><div class="mountains-front"></div>
-<div class="forest-floor"></div><div class="path"></div>
-<div class="tree t1"></div><div class="tree t2"></div><div class="tree t3"></div>
-<div class="tree t4"></div><div class="tree t5"></div><div class="tree t6"></div>
-<div class="landing-overlay"><div class="landing-copy">
-<div class="landing-eyebrow">A short guided demo</div>
+    landing_html = """<div class="landing-shell">
+<div class="landing-sky"></div>
+<div class="mist"></div>
+<div class="mountains-back"></div>
+<div class="mountains-front"></div>
+<div class="forest-floor"></div>
+<div class="path"></div>
+<div class="tree t1"></div>
+<div class="tree t2"></div>
+<div class="tree t3"></div>
+<div class="tree t4"></div>
+<div class="tree t5"></div>
+<div class="tree t6"></div>
+<div class="landing-overlay">
+<div class="landing-copy">
+<div class="landing-eyebrow">🧭 Standardization Pathfinder</div>
 <h1>Find the clearest path forward.</h1>
-<p>Start with a recurring problem. Understand its cause. Match the better way to a document, workbook, process, code, or app.</p>
-</div></div></div>""", unsafe_allow_html=True)
-    st.markdown("""<div class="journey-strip">
-<div class="journey-stop"><div class="num">1</div><b>Define the problem</b><span>Capture the friction, root causes, and better way.</span></div>
-<div class="journey-stop"><div class="num">2</div><b>Describe the needs</b><span>Identify the characteristics a solution must support.</span></div>
-<div class="journey-stop"><div class="num">3</div><b>Choose a practical fit</b><span>See the recommendation, reasons, and alternatives.</span></div>
-</div>""", unsafe_allow_html=True)
-    st.button("Begin the demo →", type="primary", on_click=set_page, args=(1,), width="stretch")
-    st.caption("Live walkthrough · Enter your own example · Original rule-based scoring")
+<p>Every recurring problem does not need an app. Follow the trail from friction to root cause, picture the better way, and discover the simplest standardization that actually fits.</p>
+</div>
+</div>
+</div>"""
+    st.markdown(landing_html, unsafe_allow_html=True)
+
+    journey_html = """<div class="journey-strip">
+<div class="journey-stop">
+<div class="num">1</div>
+<b>Notice the friction</b>
+<span>Capture what is slow, inconsistent, repetitive, unclear, or risky.</span>
+</div>
+<div class="journey-stop">
+<div class="num">2</div>
+<b>Follow it to the source</b>
+<span>Understand the workflow, root cause, scale, and what happens if nothing changes.</span>
+</div>
+<div class="journey-stop">
+<div class="num">3</div>
+<b>Choose the best path forward</b>
+<span>Match the problem to a practical document, workbook, process, code, or app solution.</span>
+</div>
+</div>"""
+    st.markdown(journey_html, unsafe_allow_html=True)
+
+    _, center, _ = st.columns([2.0, 2.0, 2.0])
+    with center:
+        if st.button("Begin the journey  →", type="primary", width="stretch"):
+            goto(1)
+
+    st.caption("Short presentation version · Enter your example as you follow the original journey.")
 
 elif page == 1:
-    heading("Step 1 · The problem", "What are you trying to fix?", "Describe the recurring friction, its root causes, and the better way.")
-    widget(st.text_input, "Problem title", "problem_title")
-    left, right = st.columns(2)
-    with left:
-        widget(st.text_area, "What is the pain point?", "pain_point", height=130)
-        widget(st.multiselect, "What is causing it?", "root_causes", options=ROOT_CAUSE_CATEGORIES)
-    with right:
-        widget(st.text_area, "Imagine the better way", "daydream", height=130)
-        widget(st.text_area, "What would success look like?", "desired_outcome", height=100)
-    with st.expander("Current workflow and context"):
-        widget(st.text_area, "Current workflow", "current_workflow", height=100)
-        widget(st.text_input, "Existing tools and controls", "existing_tools")
-        widget(st.text_input, "Why it matters", "why_matter")
-    complete = bool(st.session_state.problem_title.strip() and st.session_state.pain_point.strip()
-                    and st.session_state.root_causes and st.session_state.daydream.strip())
-    if not complete:
-        st.caption("Add a title, pain point, at least one root cause, and a better way to continue.")
-    navigation(1, disabled=not complete)
+    heading("Part 1 · Define", "What are you actually trying to fix?",
+            "Focus on the recurring problem and its consequence.")
+    with st.container(border=True):
+        st.text_input("Problem title", key="problem_title", placeholder="A short name for the issue")
+        voice_textarea("Pain point", "pain_point", placeholder="What is slow, inconsistent, unclear, or error-prone?", height=130)
+        st.text_input("Why does it matter?", key="why_matter", placeholder="The consequence in one sentence")
+    complete = all(st.session_state[k].strip() for k in ("problem_title", "pain_point", "why_matter"))
+    nav(next_disabled=not complete)
 
 elif page == 2:
-    heading("Step 2 · Solution fit", "What does the solution need to do?", "These characteristics guide the same recommendation engine used in the full app.")
-    left, right = st.columns(2)
-    with left:
-        widget(st.selectbox, "What kind of information dominates?", "data_shape", options=DATA_SHAPE_OPTIONS, index=None, placeholder="Choose the information type")
-        widget(st.selectbox, "How variable is the workflow?", "variability", options=VARIABILITY_OPTIONS, index=None, placeholder="Choose the variability")
-        widget(st.selectbox, "How many people will use it?", "user_count", options=USER_OPTIONS, index=None, placeholder="Choose the user group")
-    with right:
-        widget(st.checkbox, "Repeatable calculations", "calculation_heavy")
-        widget(st.checkbox, "Compare independently calculated results", "comparison_needed")
-        widget(st.checkbox, "Already Excel / spreadsheet native", "excel_native")
-        widget(st.checkbox, "Standard inputs", "standard_inputs")
-        widget(st.checkbox, "Standard outputs", "standard_outputs")
-        widget(st.checkbox, "Strong QA/QC or traceability", "qa_important")
-    with st.expander("Other solution needs and constraints"):
-        a, b = st.columns(2)
-        with a:
-            widget(st.checkbox, "Repeated file or data processing", "file_processing")
-            widget(st.checkbox, "Repeatable decision logic", "repeatable_decisions")
-            widget(st.checkbox, "Shared centralized multi-user state", "central_multiuser")
-        with b:
-            widget(st.checkbox, "Real-time cross-user updates", "real_time")
-            widget(st.checkbox, "Should work offline", "offline")
-            widget(st.checkbox, "Primary users are nontechnical", "nontechnical")
-    with st.expander("Review the problem"):
-        st.write(f"**{st.session_state.problem_title}**")
-        st.write(st.session_state.pain_point)
-        st.write("**Root causes:** " + ", ".join(st.session_state.root_causes))
-        st.write("**Better way:** " + st.session_state.daydream)
-    fit_complete = all(st.session_state[key] is not None for key in ("data_shape", "variability", "user_count"))
-    if not fit_complete:
-        st.caption("Choose the information type, workflow variability, and user group to continue.")
-    navigation(2, label="Find my solution →", disabled=not fit_complete)
+    heading("Part 2 · Current state", "Walk through what happens today.",
+            "Describe the current workflow, then identify what is driving the problem.")
+    voice_textarea("Current workflow", "current_workflow", placeholder="The main steps, including manual checks and handoffs", height=130)
+    st.text_input("Existing tools and controls", key="existing_tools", placeholder="Spreadsheets, SOPs, systems, or workarounds (optional)")
+    st.markdown("#### What is driving the problem?")
+    st.multiselect("Root cause categories", ROOT_CAUSE_CATEGORIES, key="root_causes",
+                   placeholder="Choose the main contributing causes", label_visibility="collapsed")
+    nav(next_disabled=not (st.session_state.current_workflow.strip() and st.session_state.root_causes))
 
 elif page == 3:
+    heading("Part 3 · Practicalities", "How big is the problem in practice?",
+            "A quick snapshot of scope, frequency, users, and effort.")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.selectbox("Scope of the issue", SCOPE_OPTIONS, key="scope", index=None, placeholder="Choose the scope")
+        st.selectbox("How often does it occur?", FREQUENCY_OPTIONS, key="frequency", index=None, placeholder="Choose the frequency")
+    with c2:
+        st.selectbox("How many people execute the current workflow?", USER_OPTIONS, key="user_count", index=None, placeholder="Choose the user group")
+        st.number_input("Approximate time per occurrence (hours)", min_value=0.0, max_value=1000.0,
+                        step=0.5, value=None, key="time_hours", placeholder="Enter the hours")
+    nav(next_disabled=any(st.session_state[k] is None for k in ("scope", "frequency", "user_count", "time_hours")))
+
+elif page == 4:
+    heading("Part 4 · Daydream", "Ignore constraints for a minute.",
+            "What would the best version of this process look like?")
+    voice_textarea("Your ideal future state", "daydream",
+                   placeholder="What would users do, what would happen automatically, and what would they see at the end?", height=160)
+    st.text_input("What would success look like?", key="desired_outcome", placeholder="The practical outcome in one sentence")
+    nav(next_disabled=not (st.session_state.daydream.strip() and st.session_state.desired_outcome.strip()))
+
+elif page == 5:
+    heading(
+        "Part 5 · Solution fit",
+        "What does the solution actually need to do?",
+        "These characteristics distinguish an SOP from a workbook, a workbook from code, and code from an app.",
+    )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.selectbox("What kind of information dominates the work?", DATA_SHAPE_OPTIONS, key="data_shape", index=None, placeholder="Choose the information type")
+        st.selectbox("How variable is the logic or workflow?", VARIABILITY_OPTIONS, key="variability", index=None, placeholder="Choose the variability")
+    with c2:
+        st.checkbox("The work contains repeatable calculations", key="calculation_heavy")
+        st.checkbox("Users need to compare independently calculated results", key="comparison_needed")
+        st.checkbox("The process is already Excel / spreadsheet native", key="excel_native")
+        st.checkbox("The work includes repeated file or data processing", key="file_processing")
+
+    st.markdown("#### Standardization needs")
+    a, b, c = st.columns(3)
+    with a:
+        st.checkbox("Standard inputs", key="standard_inputs")
+        st.checkbox("Standard outputs", key="standard_outputs")
+    with b:
+        st.checkbox("Repeatable decision logic", key="repeatable_decisions")
+        st.checkbox("Strong QA/QC or traceability", key="qa_important")
+    with c:
+        st.checkbox("Shared centralized multi-user state", key="central_multiuser")
+        st.checkbox("Real-time cross-user updates", key="real_time")
+
+    st.markdown("#### Practical constraints")
+    d, e = st.columns(2)
+    with d:
+        st.checkbox("Should work offline", key="offline")
+    with e:
+        st.checkbox("Primary users are nontechnical", key="nontechnical")
+
+    nav(next_disabled=st.session_state.data_shape is None or st.session_state.variability is None)
+
+elif page == 6:
+    heading(
+        "Review",
+        "Does this describe the problem accurately?",
+        "Review the full story before Pathfinder recommends a solution. Go back if anything important is missing.",
+    )
+
+    sections = [
+        ("Problem", [("Title", st.session_state.problem_title),
+                     ("Pain point", st.session_state.pain_point),
+                     ("Why it matters", st.session_state.why_matter)]),
+        ("Current state", [("Workflow", st.session_state.current_workflow),
+                           ("Tools", st.session_state.existing_tools or "Not provided"),
+                           ("Root causes", ", ".join(st.session_state.root_causes))]),
+        ("Practicalities", [("Scope", st.session_state.scope), ("Frequency", st.session_state.frequency),
+                           ("People", st.session_state.user_count),
+                           ("Time per occurrence", f"{st.session_state.time_hours:g} hours")]),
+        ("Future state", [("Ideal future state", st.session_state.daydream),
+                          ("Success", st.session_state.desired_outcome)]),
+    ]
+    for row in (sections[:2], sections[2:]):
+        for col, (title, items) in zip(st.columns(2), row):
+            with col:
+                with st.container(border=True):
+                    st.markdown(f"#### {title}")
+                    for k, v in items:
+                        st.markdown(f"**{k}:** {html.escape(str(v))}")
+
+    nav(next_label="Find my solution")
+
+elif page == 7:
     ranked, why = recommendation_engine()
     top_name, top_score = ranked[0]
-    st.markdown(f"""<div class="result-hero">
-<div class="label">Best-fit standardization</div>
-<h2>{escaped(top_name)}</h2><p>{escaped(solution_description(top_name))}</p>
-<div class="badge-row"><span class="badge">{escaped(category_for(top_name))}</span>
-<span class="badge">Fit score: {top_score} points</span></div></div>""", unsafe_allow_html=True)
-    left, right = st.columns([1.05, 1])
-    with left:
-        st.subheader("Why this fits")
-        if why[top_name]:
-            for reason in why[top_name][:4]:
-                st.markdown(f"- {reason}")
-        else:
-            st.write("This option has the highest total under the current scoring rules. Review the inputs and alternatives before choosing.")
-    with right:
-        with st.container(border=True):
-            st.markdown("**The outcome you want**")
-            st.write(st.session_state.desired_outcome or st.session_state.daydream)
-    st.markdown("#### Alternatives")
-    for col, (name, score) in zip(st.columns(3), ranked[1:4]):
+
+    st.markdown(
+        f"""
+        <div class="result-hero">
+            <div class="label">Best-fit standardization</div>
+            <h2>{top_name}</h2>
+            <p>{solution_description(top_name)}</p>
+            <div class="badge-row">
+                <span class="badge">{category_for(top_name)}</span>
+                <span class="badge">Fit score {top_score}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if why[top_name]:
+        st.markdown("### Why this fits")
+        for reason in why[top_name][:5]:
+            st.markdown(f"- {reason}")
+
+    st.markdown("### Strong alternatives")
+    cols = st.columns(3)
+    alternatives = ranked[1:4]
+    highest = max(max(v for _, v in ranked), 1)
+
+    for col, (name, score) in zip(cols, alternatives):
         with col:
-            st.markdown(f"""<div class="fit-card"><div class="review-k">{escaped(category_for(name))}</div>
-<h4>{escaped(name)}</h4><div class="why">{escaped(solution_description(name))}</div>
-<div class="review-k" style="margin-top:.7rem">{score} fit points</div></div>""", unsafe_allow_html=True)
-    st.caption("Rule-based fit scores are relative points, not probabilities or validated confidence levels. This is a recommendation, not a mandate.")
-    if top_name == "Excel calculation workbook":
-        with st.expander("Next: build your workbook"):
-            for i, (title, detail) in enumerate(EXCEL_BUILD_FRAMEWORK, 1):
-                st.markdown(f"**{i}. {title}** — {detail}")
-            st.info("Suggested structure: Instructions · Inputs · Parameters · Calculations · QA/QC · Results · Change Log. Not every workbook needs every sheet.")
+            pct = max(0, min(100, round(score / highest * 100)))
+            st.markdown(
+                f"""
+                <div class="fit-card">
+                    <div class="review-k">{category_for(name)}</div>
+                    <h4>{name}</h4>
+                    <div class="score">{pct}%</div>
+                    <div class="why">{solution_description(name)}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.write("")
     with st.expander("See the full comparison"):
-        st.dataframe([{"Solution": name, "Category": category_for(name), "Fit points": score} for name, score in ranked], hide_index=True, width="stretch")
-    back, _, again = st.columns([1.2, 4, 1.8])
-    with back:
-        st.button("Back", on_click=set_page, args=(2,), width="stretch")
-    with again:
-        st.button("Run demo again", type="primary", on_click=reset_demo, width="stretch")
+        for name, score in ranked:
+            pct = max(0, min(100, round(score / highest * 100)))
+            st.markdown(f"**{name}** · {category_for(name)}")
+            st.progress(pct)
+            if why[name]:
+                st.caption(why[name][0])
+            else:
+                st.caption(solution_description(name))
+
+    if top_name == "Excel calculation workbook":
+        with st.expander("Build your workbook · Next steps"):
+            st.markdown("## Build your workbook")
+            st.write(
+                "Pathfinder identified a calculation workbook as the best fit. "
+                "Use this sequence to move from the idea to a functional, reviewable workbook."
+            )
+    
+            for i, (title, detail) in enumerate(EXCEL_BUILD_FRAMEWORK, start=1):
+                st.markdown(
+                    f"""
+                    <div class="framework-step">
+                        <span class="n">{i}</span><b>{title}</b><br>
+                        <span class="why">{detail}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+    
+            st.info(
+                "A useful default workbook structure is: Instructions · Inputs · Parameters · "
+                "Calculations · QA/QC · Results · Change Log. Not every workbook needs every sheet."
+            )
+    
+
+    st.markdown("### What the result means")
+    st.write(
+        "This is a fit recommendation, not a mandate. The scoring intentionally favors the "
+        "simplest solution that addresses the root cause. An app only receives a major advantage "
+        "when the problem genuinely requires centralized multi-user interaction, real-time shared "
+        "state, or an app-style guided experience."
+    )
+
+    left, middle, right = st.columns([1.1, 4.8, 1.6])
+    with left:
+        if st.button("Back", width="stretch"):
+            goto(6)
+    with right:
+        if st.button("Start over", width="stretch"):
+            reset_app()

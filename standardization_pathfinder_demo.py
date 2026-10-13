@@ -1028,9 +1028,9 @@ elif page == 1:
         "Keep the description factual and neutral. Focus on the recurring problem and its consequence, not the solution you already have in mind.",
     )
     with st.container(border=True):
-        st.text_input("Problem title", key="problem_title", placeholder="A short name for the issue")
-        voice_textarea("Pain point", "pain_point", placeholder="What is slow, inconsistent, unclear, or error-prone?", height=130)
-        st.text_input("Why does it matter?", key="why_matter", placeholder="The consequence in one sentence")
+        st.text_input('Problem title', key='problem_title', placeholder='A short name you would recognize later')
+        voice_textarea('Pain point', 'pain_point', placeholder='Describe the issue in two or three sentences.', height=130, help_text='What is difficult, slow, inconsistent, error-prone, or frustrating?')
+        voice_textarea('Why does it matter?', 'why_matter', placeholder='Describe the result of the pain point in one sentence.', height=100, help_text='Think time, quality, error risk, rework, consistency, cost, or employee experience.')
     complete = all(st.session_state[k].strip() for k in ("problem_title", "pain_point", "why_matter"))
     nav(next_disabled=not complete)
 
@@ -1040,11 +1040,10 @@ elif page == 2:
         "Walk through what happens today.",
         "Include the real workarounds, manual checks, handoffs, and existing controls. Hidden manual work is often where the best standardization opportunities appear.",
     )
-    voice_textarea("Current workflow", "current_workflow", placeholder="The main steps, including manual checks and handoffs", height=130)
-    st.text_input("Existing tools and controls", key="existing_tools", placeholder="Spreadsheets, SOPs, systems, or workarounds (optional)")
+    voice_textarea('Current workflow', 'current_workflow', placeholder='Describe what happens from the start of the task to the end. Include manual checks and handoffs.', height=130)
+    voice_textarea('Existing tools and controls', 'existing_tools', placeholder='What spreadsheets, templates, SOPs, systems, scripts, reviews, checklists, or informal workarounds already exist?', height=100)
     st.markdown("#### What is driving the problem?")
-    st.multiselect("Root cause categories", ROOT_CAUSE_CATEGORIES, key="root_causes",
-                   placeholder="Choose the main contributing causes", label_visibility="collapsed")
+    st.multiselect('Root cause categories', ROOT_CAUSE_CATEGORIES, key='root_causes', placeholder='Choose all that materially contribute', label_visibility='collapsed')
     nav(next_disabled=not (st.session_state.current_workflow.strip() and st.session_state.root_causes))
 
 elif page == 3:
@@ -1055,12 +1054,11 @@ elif page == 3:
     )
     c1, c2 = st.columns(2)
     with c1:
-        st.selectbox("Scope of the issue", SCOPE_OPTIONS, key="scope", index=None, placeholder="Choose the scope")
-        st.selectbox("How often does it occur?", FREQUENCY_OPTIONS, key="frequency", index=None, placeholder="Choose the frequency")
+        st.selectbox('Scope of the issue', SCOPE_OPTIONS, key='scope', index=None, placeholder='Choose the scope')
+        st.selectbox('How often does it occur?', FREQUENCY_OPTIONS, key='frequency', index=None, placeholder='Choose the frequency')
     with c2:
-        st.selectbox("How many people execute the current workflow?", USER_OPTIONS, key="user_count", index=None, placeholder="Choose the user group")
-        st.number_input("Approximate time per occurrence (hours)", min_value=0.0, max_value=1000.0,
-                        step=0.5, value=None, key="time_hours", placeholder="Enter the hours")
+        st.selectbox('How many people execute the current workflow?', USER_OPTIONS, key='user_count', index=None, placeholder='Choose the user group')
+        st.number_input('Approximate time spent each time the workflow occurs (hours)', min_value=0.0, max_value=1000.0, step=0.5, value=None, key='time_hours', placeholder='Enter the hours')
     nav(next_disabled=any(st.session_state[k] is None for k in ("scope", "frequency", "user_count", "time_hours")))
 
 elif page == 4:
@@ -1069,9 +1067,19 @@ elif page == 4:
         "Ignore constraints for a minute.",
         "If you had unlimited time, resources, and technical capability, what would the best version of this process look like?",
     )
-    voice_textarea("Your ideal future state", "daydream",
-                   placeholder="What would users do, what would happen automatically, and what would they see at the end?", height=160)
-    st.text_input("What would success look like?", key="desired_outcome", placeholder="The practical outcome in one sentence")
+    st.markdown(
+        """
+        <div class="prompt-card">
+            <b>This answer matters.</b> Describe the experience you actually want. If the ideal
+            future state is a clean Excel workbook with controlled inputs and comparison outputs,
+            Pathfinder treats that as evidence for an Excel solution rather than escalating to an app.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    voice_textarea('Your ideal future state', 'daydream', placeholder='Describe what users would do, what the tool or process would do automatically, and what they would see at the end.', height=160)
+    voice_textarea('What would success look like?', 'desired_outcome', placeholder='Describe the practical outcome you want after standardization is implemented.', height=100)
     nav(next_disabled=not (st.session_state.daydream.strip() and st.session_state.desired_outcome.strip()))
 
 elif page == 5:
@@ -1083,32 +1091,32 @@ elif page == 5:
 
     c1, c2 = st.columns(2)
     with c1:
-        st.selectbox("What kind of information dominates the work?", DATA_SHAPE_OPTIONS, key="data_shape", index=None, placeholder="Choose the information type")
-        st.selectbox("How variable is the logic or workflow?", VARIABILITY_OPTIONS, key="variability", index=None, placeholder="Choose the variability")
+        st.selectbox('What kind of information dominates the work?', DATA_SHAPE_OPTIONS, key='data_shape', index=None, placeholder='Choose the information type')
+        st.selectbox('How variable is the logic or workflow?', VARIABILITY_OPTIONS, key='variability', index=None, placeholder='Choose the variability')
     with c2:
-        st.checkbox("The work contains repeatable calculations", key="calculation_heavy")
-        st.checkbox("Users need to compare independently calculated results", key="comparison_needed")
-        st.checkbox("The process is already Excel / spreadsheet native", key="excel_native")
-        st.checkbox("The work includes repeated file or data processing", key="file_processing")
+        st.checkbox('The work contains repeatable calculations', key='calculation_heavy')
+        st.checkbox('Users need to compare independently calculated results', key='comparison_needed')
+        st.checkbox('The process is already Excel / spreadsheet native', key='excel_native')
+        st.checkbox('The work includes repeated file or data processing', key='file_processing')
 
     st.markdown("#### Standardization needs")
     a, b, c = st.columns(3)
     with a:
-        st.checkbox("Standard inputs", key="standard_inputs")
-        st.checkbox("Standard outputs", key="standard_outputs")
+        st.checkbox('Standard inputs', key='standard_inputs')
+        st.checkbox('Standard outputs', key='standard_outputs')
     with b:
-        st.checkbox("Repeatable decision logic", key="repeatable_decisions")
-        st.checkbox("Strong QA/QC or traceability", key="qa_important")
+        st.checkbox('Repeatable decision logic', key='repeatable_decisions')
+        st.checkbox('Strong QA/QC or traceability', key='qa_important')
     with c:
-        st.checkbox("Shared centralized multi-user state", key="central_multiuser")
-        st.checkbox("Real-time cross-user updates", key="real_time")
+        st.checkbox('Shared centralized multi-user state', key='central_multiuser')
+        st.checkbox('Real-time cross-user updates', key='real_time')
 
     st.markdown("#### Practical constraints")
     d, e = st.columns(2)
     with d:
-        st.checkbox("Should work offline", key="offline")
+        st.checkbox('Should work offline', key='offline')
     with e:
-        st.checkbox("Primary users are nontechnical", key="nontechnical")
+        st.checkbox('Primary users are nontechnical', key='nontechnical')
 
     nav(next_disabled=st.session_state.data_shape is None or st.session_state.variability is None)
 

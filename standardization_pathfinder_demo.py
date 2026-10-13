@@ -5,8 +5,8 @@ Run locally:
     python -m streamlit run standardization_pathfinder_demo.py
 
 Suggested 2–3 minute walkthrough:
-1. Begin the demo (the example is fictional and prefilled).
-2. Show the recurring problem, root causes, and desired outcome.
+1. Begin the demo with blank fields and enter your example live.
+2. Enter the recurring problem, root causes, and desired outcome.
 3. Show the solution characteristics, then select Find my solution.
 4. Explain the recommendation and expand the workbook build sequence.
 
@@ -868,28 +868,11 @@ st.markdown("""<style>
 @media(max-width:800px){.landing-overlay{padding:1.8rem;}.landing-copy h1{font-size:2.8rem;}}
 </style>""", unsafe_allow_html=True)
 
-EXAMPLE = {
-    "problem_title": "Recurring calculation reviews",
-    "pain_point": "Reviewers rebuild the same calculations in separate spreadsheets. Inputs and QA/QC checks vary, so results take longer to compare and reconcile.",
-    "why_matter": "Repeated setup and inconsistent checks create avoidable review time and rework.",
-    "current_workflow": "Each reviewer copies project inputs into their own Excel file, calculates results, and manually compares them with the submitted results.",
-    "existing_tools": "Individual Excel files and a review checklist.",
-    "root_causes": ["Repetitive calculations", "Lack of standard inputs", "Insufficient QA/QC"],
-    "root_cause_details": "Reviewers use different input layouts and checks.",
-    "daydream": "One transparent calculation workbook with controlled inputs, repeatable calculations, built-in QA/QC, and a side-by-side results comparison.",
-    "desired_outcome": "Consistent, reviewable results with less repeated setup and easier reconciliation.",
-    "calculation_heavy": True,
-    "comparison_needed": True,
-    "excel_native": True,
-    "standard_inputs": True,
-    "standard_outputs": True,
-    "qa_important": True,
-    "offline": True,
-}
+# No answers are supplied in advance for the live walkthrough.
+DEFAULTS.update(data_shape=None, variability=None, user_count=None, nontechnical=False)
 
 if "demo_initialized" not in st.session_state:
     st.session_state.update(copy.deepcopy(DEFAULTS))
-    st.session_state.update(copy.deepcopy(EXAMPLE))
     st.session_state.demo_initialized = True
 
 
@@ -897,14 +880,12 @@ def set_page(page):
     st.session_state.page = page
 
 
-def reset_demo(example=True):
+def reset_demo():
     # Callbacks run before widgets are recreated, so resetting is safe.
     for key in list(st.session_state):
         if key.startswith("_input_"):
             del st.session_state[key]
     st.session_state.update(copy.deepcopy(DEFAULTS))
-    if example:
-        st.session_state.update(copy.deepcopy(EXAMPLE))
     st.session_state.demo_initialized = True
 
 
@@ -932,13 +913,11 @@ def escaped(value):
     return html.escape(str(value))
 
 
-brand, restart, blank = st.columns([5, 1.5, 1.3])
+brand, restart = st.columns([6, 1.5])
 with brand:
     st.markdown('<div class="brand">🧭 Standardization Pathfinder</div><div class="demo-tag">Presentation demo · session only</div>', unsafe_allow_html=True)
 with restart:
-    st.button("Reload example", on_click=reset_demo, args=(True,), width="stretch")
-with blank:
-    st.button("Start blank", on_click=reset_demo, args=(False,), width="stretch")
+    st.button("Start over", on_click=reset_demo, width="stretch")
 
 page = st.session_state.page
 if page:
@@ -963,13 +942,8 @@ if page == 0:
 <div class="journey-stop"><div class="num">2</div><b>Describe the needs</b><span>Identify the characteristics a solution must support.</span></div>
 <div class="journey-stop"><div class="num">3</div><b>Choose a practical fit</b><span>See the recommendation, reasons, and alternatives.</span></div>
 </div>""", unsafe_allow_html=True)
-    left, right = st.columns([2, 1])
-    with left:
-        st.button("Begin the demo →", type="primary", on_click=set_page, args=(1,), width="stretch")
-    with right:
-        st.button("Jump to recommendation", on_click=set_page, args=(3,), width="stretch",
-                  disabled=not (st.session_state.problem_title.strip() and st.session_state.pain_point.strip() and st.session_state.root_causes and st.session_state.daydream.strip()))
-    st.caption("2–3 minute walkthrough · Starts with a fictional example you can edit · Original rule-based scoring")
+    st.button("Begin the demo →", type="primary", on_click=set_page, args=(1,), width="stretch")
+    st.caption("Live walkthrough · Enter your own example · Original rule-based scoring")
 
 elif page == 1:
     heading("Step 1 · The problem", "What are you trying to fix?", "Describe the recurring friction, its root causes, and the better way.")
@@ -995,9 +969,9 @@ elif page == 2:
     heading("Step 2 · Solution fit", "What does the solution need to do?", "These characteristics guide the same recommendation engine used in the full app.")
     left, right = st.columns(2)
     with left:
-        widget(st.selectbox, "What kind of information dominates?", "data_shape", options=DATA_SHAPE_OPTIONS)
-        widget(st.selectbox, "How variable is the workflow?", "variability", options=VARIABILITY_OPTIONS)
-        widget(st.selectbox, "How many people will use it?", "user_count", options=USER_OPTIONS)
+        widget(st.selectbox, "What kind of information dominates?", "data_shape", options=DATA_SHAPE_OPTIONS, index=None, placeholder="Choose the information type")
+        widget(st.selectbox, "How variable is the workflow?", "variability", options=VARIABILITY_OPTIONS, index=None, placeholder="Choose the variability")
+        widget(st.selectbox, "How many people will use it?", "user_count", options=USER_OPTIONS, index=None, placeholder="Choose the user group")
     with right:
         widget(st.checkbox, "Repeatable calculations", "calculation_heavy")
         widget(st.checkbox, "Compare independently calculated results", "comparison_needed")
@@ -1020,7 +994,10 @@ elif page == 2:
         st.write(st.session_state.pain_point)
         st.write("**Root causes:** " + ", ".join(st.session_state.root_causes))
         st.write("**Better way:** " + st.session_state.daydream)
-    navigation(2, label="Find my solution →")
+    fit_complete = all(st.session_state[key] is not None for key in ("data_shape", "variability", "user_count"))
+    if not fit_complete:
+        st.caption("Choose the information type, workflow variability, and user group to continue.")
+    navigation(2, label="Find my solution →", disabled=not fit_complete)
 
 elif page == 3:
     ranked, why = recommendation_engine()
@@ -1060,4 +1037,4 @@ elif page == 3:
     with back:
         st.button("Back", on_click=set_page, args=(2,), width="stretch")
     with again:
-        st.button("Run demo again", type="primary", on_click=reset_demo, args=(True,), width="stretch")
+        st.button("Run demo again", type="primary", on_click=reset_demo, width="stretch")
